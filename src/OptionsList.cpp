@@ -483,6 +483,20 @@ bool OptionsList::Input( const InputEventPlus &input )
 		}
 		return true;
 	}
+	else if (input.MenuI == GAME_BUTTON_UP || input.MenuI == GAME_BUTTON_DOWN)
+	{
+		if (input.type == IET_FIRST_PRESS)
+		{
+			if (m_asMenuStack.size() > 0)
+			{
+				Pop();
+				Message msg("OptionsListPop");
+				msg.SetParam("Player", m_pn);
+				MESSAGEMAN->Broadcast(msg);
+				return m_asMenuStack.empty();
+			}
+		}
+	}
 	return false;
 }
 

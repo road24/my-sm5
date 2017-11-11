@@ -18,11 +18,13 @@
 
 enum SelectionState
 {
+	SelectionState_SelectingGroup,
 	SelectionState_SelectingSong,
 	SelectionState_SelectingSteps,
 	SelectionState_Finalized,
 	NUM_SelectionState,
 };
+
 const RString& SelectionStateToString( SelectionState ss );
 
 class ScreenSelectMusic : public ScreenWithMenuElements
@@ -105,6 +107,8 @@ protected:
 	{
 		switch( m_SelectionState )
 		{
+		case SelectionState_SelectingGroup:
+			return SelectionState_SelectingSong;
 		case SelectionState_SelectingSong:
 			return TWO_PART_SELECTION ? SelectionState_SelectingSteps : SelectionState_Finalized;
 		case SelectionState_SelectingSteps:
@@ -150,6 +154,8 @@ protected:
 	RageSound		m_soundDifficultyHarder;
 	RageSound		m_soundOptionsChange;
 	RageSound		m_soundLocked;
+
+	RageSound		m_soundGroupChanged;
 
 	BackgroundLoader	m_BackgroundLoader;
 	RageTexturePreloader	m_TexturePreload;

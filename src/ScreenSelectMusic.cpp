@@ -32,6 +32,7 @@
 #include "OptionsList.h"
 
 static const char *SelectionStateNames[] = {
+	"SelectingGroup",
 	"SelectingSong",
 	"SelectingSteps",
 	"Finalized"
@@ -221,6 +222,8 @@ void ScreenSelectMusic::Init()
 	m_soundDifficultyHarder.Load( THEME->GetPathS(m_sName,"difficulty harder"), false, &SoundParams );
 	m_soundOptionsChange.Load( THEME->GetPathS(m_sName,"options") );
 	m_soundLocked.Load( THEME->GetPathS(m_sName,"locked") );
+
+	m_soundGroupChanged.Load(THEME->GetPathS(m_sName, "GroupChanged"));
 
 	this->SortByDrawOrder();
 }
@@ -594,6 +597,49 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
 		return true;
 	}
 
+	// deselect steps
+	if (m_SelectionState == SelectionState_SelectingSteps && m_bStepsChosen[input.pn] && input.type == IET_FIRST_PRESS
+		&& (input.MenuI == m_GameButtonPreviousSong || input.MenuI == m_GameButtonNextSong))
+	{
+		Message msg("StepsUnchosen");
+		msg.SetParam("Player", input.pn);
+		MESSAGEMAN->Broadcast(msg);
+		m_bStepsChosen[input.pn] = false;
+	}
+
+	if ( (input.MenuI == GAME_BUTTON_MENUUP || input.MenuI == GAME_BUTTON_MENUDOWN) && m_SelectionState == SelectionState_SelectingSong && input.type == IET_FIRST_PRESS )
+	{
+		//The Same issue as in oplist so
+		//m_RageSoundSelectingGroup.Play(true);
+		SOUND->StopMusic();
+		m_MusicWheel.Move(0);
+		m_SelectionState = SelectionState_SelectingGroup;
+		MESSAGEMAN->Broadcast("StartSelectingGroup");
+	}
+
+	// handle groups here, after sub menus are handled
+	if (m_SelectionState == SelectionState_SelectingGroup && input.type == IET_FIRST_PRESS && !m_OptionsList[input.pn].IsOpened())
+	{
+		if (input.MenuI == m_GameButtonNextSong || input.MenuI == m_GameButtonPreviousSong)
+		{
+			m_soundGroupChanged.Play();
+			/*
+			Message msg("GroupChanged");
+			msg.SetParam("Direction", input.MenuI == m_GameButtonPreviousSong ? -1 : 1);
+			MESSAGEMAN->Broadcast(msg);
+			*/
+			RString message = "";
+			if (input.MenuI == m_GameButtonNextSong)
+				message = "NextGroupChange";
+			else
+				message = "PreviousGroupChange";
+			Message msg(message);
+			MESSAGEMAN->Broadcast(msg);
+			//return false;
+		}
+	}
+
+
 	if( m_SelectionState == SelectionState_SelectingSong  &&
 		(input.MenuI == m_GameButtonNextSong || input.MenuI == m_GameButtonPreviousSong || input.MenuI == GAME_BUTTON_SELECT) )
 	{
@@ -856,6 +902,28 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
                     }
 				}
 			}
+		}
+	}
+
+	//Maneja el cambio de grupo
+	if (m_SelectionState == SelectionState_SelectingGroup)
+	{
+		if (input.type == IET_FIRST_PRESS && (input.MenuI == m_GameButtonPreviousSong || input.MenuI == m_GameButtonNextSong))
+		{
+			m_soundGroupChanged.Play();
+			/*
+			Message msg("GroupChanged");
+			msg.SetParam("Direction", input.MenuI == m_GameButtonPreviousSong ? -1 : 1);
+			MESSAGEMAN->Broadcast(msg);
+			*/
+			RString message = "";
+			if (input.MenuI == m_GameButtonNextSong)
+				message = "NextGroupChange";
+			else
+				message = "PreviousGroupChange";
+			Message msg(message);
+			MESSAGEMAN->Broadcast(msg);
+			//return false;
 		}
 	}
 
@@ -1192,6 +1260,11 @@ bool ScreenSelectMusic::MenuStart( const InputEventPlus &input )
 	switch( m_SelectionState )
 	{
 	DEFAULT_FAIL( m_SelectionState );
+	case SelectionState_SelectingGroup:
+		// send a message that we selected a group
+		m_soundStart.Play();
+		MESSAGEMAN->Broadcast("GroupChosen");
+		break;
 	case SelectionState_SelectingSong:
 		// If false, we don't have a selection just yet.
 		if( !m_MusicWheel.Select() )
