@@ -404,200 +404,128 @@ void ScreenSelectMusic::Update( float fDeltaTime )
 }
 bool ScreenSelectMusic::Input( const InputEventPlus &input )
 {
+	// HACK: We should make sure the input is per player in this screen
+	//INPUTMAPPER->SetJoinControllers(PLAYER_INVALID);
+
 	// HACK: This screen eats mouse inputs if we don't check for them first.
 	bool mouse_evt = false;
 	for (int i = MOUSE_LEFT; i <= MOUSE_WHEELDOWN; i++)
 	{
-		if (input.DeviceI == DeviceInput( DEVICE_MOUSE, (DeviceButton)i ))
+		if (input.DeviceI == DeviceInput(DEVICE_MOUSE, (DeviceButton)i))
 			mouse_evt = true;
 	}
-	if (mouse_evt)	
+	if (mouse_evt)
 	{
 		return ScreenWithMenuElements::Input(input);
 	}
-//	LOG->Trace( "ScreenSelectMusic::Input()" );
+	//	LOG->Trace( "ScreenSelectMusic::Input()" );
 
 	// reset announcer timer
 	m_timerIdleComment.GetDeltaTime();
 
 	// debugging?
 	// I just like being able to see untransliterated titles occasionally.
-	if( input.DeviceI.device == DEVICE_KEYBOARD && input.DeviceI.button == KEY_F9 )
+	if (input.DeviceI.device == DEVICE_KEYBOARD && input.DeviceI.button == KEY_F9)
 	{
-		if( input.type != IET_FIRST_PRESS ) 
+		if (input.type != IET_FIRST_PRESS)
 			return false;
-		PREFSMAN->m_bShowNativeLanguage.Set( !PREFSMAN->m_bShowNativeLanguage );
-		MESSAGEMAN->Broadcast( "DisplayLanguageChanged" );
+		PREFSMAN->m_bShowNativeLanguage.Set(!PREFSMAN->m_bShowNativeLanguage);
+		MESSAGEMAN->Broadcast("DisplayLanguageChanged");
 		m_MusicWheel.RebuildWheelItems();
 		return true;
 	}
 
-	if( !IsTransitioning() && m_SelectionState != SelectionState_Finalized )
+	if (!IsTransitioning() && m_SelectionState != SelectionState_Finalized)
 	{
-		bool bHoldingCtrl = 
-		INPUTFILTER->IsBeingPressed(DeviceInput(DEVICE_KEYBOARD, KEY_LCTRL)) ||
-		INPUTFILTER->IsBeingPressed(DeviceInput(DEVICE_KEYBOARD, KEY_RCTRL));
+		bool bHoldingCtrl =
+			INPUTFILTER->IsBeingPressed(DeviceInput(DEVICE_KEYBOARD, KEY_LCTRL)) ||
+			INPUTFILTER->IsBeingPressed(DeviceInput(DEVICE_KEYBOARD, KEY_RCTRL));
 
-		wchar_t c = INPUTMAN->DeviceInputToChar(input.DeviceI,false);
-		MakeUpper( &c, 1 );
+		bool holding_shift =
+			INPUTFILTER->IsBeingPressed(DeviceInput(DEVICE_KEYBOARD, KEY_LSHIFT)) ||
+			INPUTFILTER->IsBeingPressed(DeviceInput(DEVICE_KEYBOARD, KEY_RSHIFT));
 
-		if( bHoldingCtrl && ( c >= 'A' ) && ( c <= 'Z' ) )
+		wchar_t c = INPUTMAN->DeviceInputToChar(input.DeviceI, false);
+		MakeUpper(&c, 1);
+
+		if (bHoldingCtrl && (c >= 'A') && (c <= 'Z'))
 		{
 			// Only allow changing the sort order if the wheel is not locked
 			// and we're not in course mode. -aj
-			if( !m_MusicWheel.WheelIsLocked() && !GAMESTATE->IsCourseMode() )
+			if (!m_MusicWheel.WheelIsLocked() && !GAMESTATE->IsCourseMode())
 			{
 				SortOrder so = GAMESTATE->m_SortOrder;
 				// When in Artist sort, this means first letter of the artist.
 				// Otherwise, if not in Title sort already, switch to Title sort.
-				if ( so != SORT_ARTIST )
+				if (so != SORT_ARTIST)
 					so = SORT_TITLE;
 
 				GAMESTATE->m_PreferredSortOrder = so;
-				GAMESTATE->m_SortOrder.Set( so );
+				GAMESTATE->m_SortOrder.Set(so);
 				// Odd, changing the sort order requires us to call SetOpenSection more than once
-				m_MusicWheel.ChangeSort( so );
-				m_MusicWheel.SetOpenSection( ssprintf("%c", c ) );
+				m_MusicWheel.ChangeSort(so);
+				m_MusicWheel.SetOpenSection(ssprintf("%c", c));
 
-				m_MusicWheel.SelectSection( ssprintf("%c", c ) );
-				m_MusicWheel.ChangeSort( so );
-				m_MusicWheel.SetOpenSection( ssprintf("%c", c ) );
+				m_MusicWheel.SelectSection(ssprintf("%c", c));
+				m_MusicWheel.ChangeSort(so);
+				m_MusicWheel.SetOpenSection(ssprintf("%c", c));
 				AfterMusicChange();
 				return true;
 			}
 		}
 	}
 
-	if( !input.GameI.IsValid() )
+	if (!input.GameI.IsValid())
 		return false; // don't care
 
 	// Handle late joining
-	if( m_SelectionState != SelectionState_Finalized  &&  input.MenuI == GAME_BUTTON_START  &&  input.type == IET_FIRST_PRESS  &&  GAMESTATE->JoinInput(input.pn) )
+	// If the other player is allowed to join on the extra stage, then the
+	// summary screen will crash on invalid stage stats. -Kyz
+	if (m_SelectionState != SelectionState_Finalized &&
+		input.MenuI == GAME_BUTTON_START && input.type == IET_FIRST_PRESS &&
+		!GAMESTATE->IsAnExtraStage() && GAMESTATE->JoinInput(input.pn))
+	{
 		return true; // don't handle this press again below
+	}
 
-	if( !GAMESTATE->IsHumanPlayer(input.pn) )
+	if (!GAMESTATE->IsHumanPlayer(input.pn))
 		return false;
 
 	// Check for "Press START again for options" button press
-	if( m_SelectionState == SelectionState_Finalized  &&
-	    input.MenuI == GAME_BUTTON_START  &&
-	    input.type != IET_RELEASE  &&
-	    OPTIONS_MENU_AVAILABLE.GetValue() )
+	if (m_SelectionState == SelectionState_Finalized  &&
+		input.MenuI == GAME_BUTTON_START  &&
+		input.type != IET_RELEASE  &&
+		OPTIONS_MENU_AVAILABLE.GetValue())
 	{
-		if( m_bGoToOptions )
+		if (m_bGoToOptions)
 			return false; // got it already
-		if( !m_bAllowOptionsMenu )
+		if (!m_bAllowOptionsMenu)
 			return false; // not allowed
 
-		if( !m_bAllowOptionsMenuRepeat && input.type == IET_REPEAT )
+		if (!m_bAllowOptionsMenuRepeat && input.type == IET_REPEAT)
 		{
 			return false; // not allowed yet
 		}
 
 		m_bGoToOptions = true;
-		if( PLAY_SOUND_ON_ENTERING_OPTIONS_MENU )
+		if (PLAY_SOUND_ON_ENTERING_OPTIONS_MENU)
 			m_soundStart.Play();
-		this->PlayCommand( "ShowEnteringOptions" );
+		this->PlayCommand("ShowEnteringOptions");
 
 		// Re-queue SM_BeginFadingOut, since ShowEnteringOptions may have
 		// short-circuited animations.
-		this->ClearMessageQueue( SM_BeginFadingOut );
-		this->PostScreenMessage( SM_BeginFadingOut, this->GetTweenTimeLeft() );
+		this->ClearMessageQueue(SM_BeginFadingOut);
+		this->PostScreenMessage(SM_BeginFadingOut, this->GetTweenTimeLeft());
 
 		return true;
 	}
 
-	if( IsTransitioning() )
+	if (IsTransitioning())
 		return false; // ignore
 
-	// Handle unselect steps
-	// xxx: select button could conflict with OptionsList here -aj
-	if( m_SelectionState == SelectionState_SelectingSteps && m_bStepsChosen[input.pn]
-		&& input.MenuI == GAME_BUTTON_SELECT && input.type == IET_FIRST_PRESS )
-	{
-		Message msg("StepsUnchosen");
-		msg.SetParam( "Player", input.pn );
-		MESSAGEMAN->Broadcast( msg );
-		m_bStepsChosen[input.pn] = false;
-		return true;
-	}
-
-	if( m_SelectionState == SelectionState_Finalized  ||
-		m_bStepsChosen[input.pn] )
-		return false; // ignore
-
-	if( USE_PLAYER_SELECT_MENU )
-	{
-		if( input.type == IET_RELEASE  &&  input.MenuI == GAME_BUTTON_SELECT )
-		{
-			SCREENMAN->AddNewScreenToTop( SELECT_MENU_NAME, SM_BackFromPlayerOptions );
-		}
-	}
-
-	// handle OptionsList input
-	if( USE_OPTIONS_LIST )
-	{
-		PlayerNumber pn = input.pn;
-		if( pn != PLAYER_INVALID )
-		{
-			if( m_OptionsList[pn].IsOpened() )
-			{
-				return m_OptionsList[pn].Input( input );
-			}
-			else
-			{
-				if( input.type == IET_RELEASE  &&  input.MenuI == GAME_BUTTON_SELECT && m_bAcceptSelectRelease[pn] )
-					m_OptionsList[pn].Open();
-			}
-		}
-	}
-
-	if( input.MenuI == GAME_BUTTON_SELECT && input.type != IET_REPEAT )
-		m_bAcceptSelectRelease[input.pn] = (input.type == IET_FIRST_PRESS);
-
-	if( SELECT_MENU_AVAILABLE && input.MenuI == GAME_BUTTON_SELECT && input.type != IET_REPEAT )
-		UpdateSelectButton( input.pn, input.type == IET_FIRST_PRESS );
-
-	if( SELECT_MENU_AVAILABLE  &&  m_bSelectIsDown[input.pn] )
-	{
-		if( input.type == IET_FIRST_PRESS && SELECT_MENU_CHANGES_DIFFICULTY )
-		{
-			switch( input.MenuI )
-			{
-				case GAME_BUTTON_LEFT:
-					ChangeSteps( input.pn, -1 );
-					m_bAcceptSelectRelease[input.pn] = false;
-					break;
-				case GAME_BUTTON_RIGHT:
-					ChangeSteps( input.pn, +1 );
-					m_bAcceptSelectRelease[input.pn] = false;
-					break;
-				case GAME_BUTTON_START:
-					m_bAcceptSelectRelease[input.pn] = false;
-					if( MODE_MENU_AVAILABLE )
-						m_MusicWheel.NextSort();
-					else
-						m_soundLocked.Play();
-					break;
-				default: break;
-			}
-		}
-		if( input.type == IET_FIRST_PRESS && input.MenuI != GAME_BUTTON_SELECT )
-		{
-			Message msg("SelectMenuInput");
-			msg.SetParam( "Player", input.pn );
-			msg.SetParam( "Button", GameButtonToString(INPUTMAPPER->GetInputScheme(), input.MenuI) );
-			MESSAGEMAN->Broadcast( msg );
-			m_bAcceptSelectRelease[input.pn] = false;
-		}
-		if( input.type == IET_FIRST_PRESS )
-			g_CanOpenOptionsList.Touch();
-		if( g_CanOpenOptionsList.Ago() > OPTIONS_LIST_TIMEOUT )
-			m_bAcceptSelectRelease[input.pn] = false;
-		return true;
-	}
-
-	// deselect steps
+	// Por el momento agrego aqui el deseleccionar los steps
+	// Solo sirve para poder deseleccionar pasos como en la fiesta, solo cambiando
+	// Pero aun asi necesito agregar un tercer estado 
 	if (m_SelectionState == SelectionState_SelectingSteps && m_bStepsChosen[input.pn] && input.type == IET_FIRST_PRESS
 		&& (input.MenuI == m_GameButtonPreviousSong || input.MenuI == m_GameButtonNextSong))
 	{
@@ -607,94 +535,174 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
 		m_bStepsChosen[input.pn] = false;
 	}
 
-	if ( (input.MenuI == GAME_BUTTON_MENUUP || input.MenuI == GAME_BUTTON_MENUDOWN) && m_SelectionState == SelectionState_SelectingSong && input.type == IET_FIRST_PRESS )
+	//TODO : Ellos quieren 2 mensajes pero la cuestion es agregar un evento que no sea 
+	//usado solamente para pump , configurar en metrics el boton ?
+	if (input.type == IET_FIRST_PRESS && (input.MenuI == GAME_BUTTON_MENUUP || input.MenuI == GAME_BUTTON_MENUDOWN))
 	{
-		//The Same issue as in oplist so
-		//m_RageSoundSelectingGroup.Play(true);
-		SOUND->StopMusic();
-		m_MusicWheel.Move(0);
-		m_SelectionState = SelectionState_SelectingGroup;
-		MESSAGEMAN->Broadcast("StartSelectingGroup");
+		Message msg(input.MenuI == GAME_BUTTON_MENUUP ? "UpLeftPressed" : "UpRightPressed");
+		msg.SetParam("State", SelectionStateToString(m_SelectionState));
+		MESSAGEMAN->Broadcast(msg);
 	}
 
-	// handle groups here, after sub menus are handled
-	if (m_SelectionState == SelectionState_SelectingGroup && input.type == IET_FIRST_PRESS && !m_OptionsList[input.pn].IsOpened())
+	// Me envia a SelectionStateSelectingGroup XD
+	//estos cambios no van para el repositorio, hacerlos en la mini y descartar aqui
+	if (true)
 	{
-		if (input.MenuI == m_GameButtonNextSong || input.MenuI == m_GameButtonPreviousSong)
+		if (m_SelectionState == SelectionState_SelectingSong && input.type == IET_FIRST_PRESS
+			&& (input.MenuI == GAME_BUTTON_MENUUP || input.MenuI == GAME_BUTTON_MENUDOWN)
+			&& !m_OptionsList[input.pn].IsOpened())
 		{
-			m_soundGroupChanged.Play();
-			/*
-			Message msg("GroupChanged");
-			msg.SetParam("Direction", input.MenuI == m_GameButtonPreviousSong ? -1 : 1);
-			MESSAGEMAN->Broadcast(msg);
-			*/
-			RString message = "";
-			if (input.MenuI == m_GameButtonNextSong)
-				message = "NextGroupChange";
-			else
-				message = "PreviousGroupChange";
-			Message msg(message);
-			MESSAGEMAN->Broadcast(msg);
-			//return false;
+			//The Same issue as in oplist so
+			//m_RageSoundSelectingGroup.Play(true);
+			SOUND->StopMusic();
+			m_MusicWheel.Move(0);
+			m_SelectionState = SelectionState_SelectingGroup;
+			MESSAGEMAN->Broadcast("StartSelectingGroup");
+
 		}
 	}
 
+	// Handle unselect steps
+	// xxx: select button could conflict with OptionsList here -aj
+	if (m_SelectionState == SelectionState_SelectingSteps && m_bStepsChosen[input.pn]
+		&& input.MenuI == GAME_BUTTON_SELECT && input.type == IET_FIRST_PRESS)
+	{
+		Message msg("StepsUnchosen");
+		msg.SetParam("Player", input.pn);
+		MESSAGEMAN->Broadcast(msg);
+		m_bStepsChosen[input.pn] = false;
+		return true;
+	}
 
-	if( m_SelectionState == SelectionState_SelectingSong  &&
-		(input.MenuI == m_GameButtonNextSong || input.MenuI == m_GameButtonPreviousSong || input.MenuI == GAME_BUTTON_SELECT) )
+	if (m_SelectionState == SelectionState_Finalized) //|| m_bStepsChosen[input.pn] )
+		return false; // ignore
+
+	if (USE_PLAYER_SELECT_MENU)
+	{
+		if (input.type == IET_RELEASE  &&  input.MenuI == GAME_BUTTON_SELECT)
+		{
+			SCREENMAN->AddNewScreenToTop(SELECT_MENU_NAME, SM_BackFromPlayerOptions);
+		}
+	}
+
+	// handle OptionsList input
+	if (USE_OPTIONS_LIST)
+	{
+		PlayerNumber pn = input.pn;
+		if (pn != PLAYER_INVALID)
+		{
+			if (m_OptionsList[pn].IsOpened())
+			{
+				return m_OptionsList[pn].Input(input);
+			}
+			else
+			{
+				if (input.type == IET_RELEASE  &&  input.MenuI == GAME_BUTTON_SELECT && m_bAcceptSelectRelease[pn])
+					m_OptionsList[pn].Open();
+			}
+		}
+	}
+
+	if (input.MenuI == GAME_BUTTON_SELECT && input.type != IET_REPEAT)
+		m_bAcceptSelectRelease[input.pn] = (input.type == IET_FIRST_PRESS);
+
+	if (SELECT_MENU_AVAILABLE && input.MenuI == GAME_BUTTON_SELECT && input.type != IET_REPEAT)
+		UpdateSelectButton(input.pn, input.type == IET_FIRST_PRESS);
+
+	if (SELECT_MENU_AVAILABLE  &&  m_bSelectIsDown[input.pn])
+	{
+		if (input.type == IET_FIRST_PRESS && SELECT_MENU_CHANGES_DIFFICULTY)
+		{
+			switch (input.MenuI)
+			{
+			case GAME_BUTTON_LEFT:
+				ChangeSteps(input.pn, -1);
+				m_bAcceptSelectRelease[input.pn] = false;
+				break;
+			case GAME_BUTTON_RIGHT:
+				ChangeSteps(input.pn, +1);
+				m_bAcceptSelectRelease[input.pn] = false;
+				break;
+			case GAME_BUTTON_START:
+				m_bAcceptSelectRelease[input.pn] = false;
+				if (MODE_MENU_AVAILABLE)
+					m_MusicWheel.NextSort();
+				else
+					m_soundLocked.Play();
+				break;
+			default: break;
+			}
+		}
+		if (input.type == IET_FIRST_PRESS && input.MenuI != GAME_BUTTON_SELECT)
+		{
+			Message msg("SelectMenuInput");
+			msg.SetParam("Player", input.pn);
+			msg.SetParam("Button", GameButtonToString(INPUTMAPPER->GetInputScheme(), input.MenuI));
+			MESSAGEMAN->Broadcast(msg);
+			m_bAcceptSelectRelease[input.pn] = false;
+		}
+		if (input.type == IET_FIRST_PRESS)
+			g_CanOpenOptionsList.Touch();
+		if (g_CanOpenOptionsList.Ago() > OPTIONS_LIST_TIMEOUT)
+			m_bAcceptSelectRelease[input.pn] = false;
+		return true;
+	}
+
+	if (m_SelectionState == SelectionState_SelectingSong &&
+		(input.MenuI == m_GameButtonNextSong || input.MenuI == m_GameButtonPreviousSong || input.MenuI == GAME_BUTTON_SELECT))
 	{
 		{
 			// If we're rouletting, hands off.
-			if( m_MusicWheel.IsRouletting() )
+			if (m_MusicWheel.IsRouletting())
 				return false;
 
 			bool bLeftIsDown = false;
 			bool bRightIsDown = false;
 
-			FOREACH_HumanPlayer( p )
+			FOREACH_HumanPlayer(p)
 			{
-				if( m_OptionsList[p].IsOpened() )
+				if (m_OptionsList[p].IsOpened())
 					continue;
-				if( SELECT_MENU_AVAILABLE && INPUTMAPPER->IsBeingPressed(GAME_BUTTON_SELECT, p) )
+				if (SELECT_MENU_AVAILABLE && INPUTMAPPER->IsBeingPressed(GAME_BUTTON_SELECT, p))
 					continue;
 
-				bLeftIsDown |= INPUTMAPPER->IsBeingPressed( m_GameButtonPreviousSong, p );
-				bRightIsDown |= INPUTMAPPER->IsBeingPressed( m_GameButtonNextSong, p );
+				bLeftIsDown |= INPUTMAPPER->IsBeingPressed(m_GameButtonPreviousSong, p);
+				bRightIsDown |= INPUTMAPPER->IsBeingPressed(m_GameButtonNextSong, p);
 			}
 
 			bool bBothDown = bLeftIsDown && bRightIsDown;
 			bool bNeitherDown = !bLeftIsDown && !bRightIsDown;
 
-			if( bNeitherDown )
+			if (bNeitherDown)
 			{
 				// Both buttons released.
-				m_MusicWheel.Move( 0 );
+				m_MusicWheel.Move(0);
 			}
-			else if( bBothDown )
+			else if (bBothDown)
 			{
-				m_MusicWheel.Move( 0 );
-				if( input.type == IET_FIRST_PRESS )
+				m_MusicWheel.Move(0);
+				if (input.type == IET_FIRST_PRESS)
 				{
-					if( input.MenuI == m_GameButtonPreviousSong )
-						m_MusicWheel.ChangeMusicUnlessLocked( -1 );
-					else if( input.MenuI == m_GameButtonNextSong )
-						m_MusicWheel.ChangeMusicUnlessLocked( +1 );
+					if (input.MenuI == m_GameButtonPreviousSong)
+						m_MusicWheel.ChangeMusicUnlessLocked(-1);
+					else if (input.MenuI == m_GameButtonNextSong)
+						m_MusicWheel.ChangeMusicUnlessLocked(+1);
 				}
 			}
-			else if( bLeftIsDown )
+			else if (bLeftIsDown)
 			{
-				if( input.type != IET_RELEASE )
+				if (input.type != IET_RELEASE)
 				{
-					MESSAGEMAN->Broadcast( "PreviousSong" );
-					m_MusicWheel.Move( -1 );
+					MESSAGEMAN->Broadcast("PreviousSong");
+					m_MusicWheel.Move(-1);
 				}
 			}
-			else if( bRightIsDown )
+			else if (bRightIsDown)
 			{
-				if( input.type != IET_RELEASE )
+				if (input.type != IET_RELEASE)
 				{
-					MESSAGEMAN->Broadcast( "NextSong" );
-					m_MusicWheel.Move( +1 );
+					MESSAGEMAN->Broadcast("NextSong");
+					m_MusicWheel.Move(+1);
 				}
 			}
 			else
@@ -705,53 +713,53 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
 			// Reset the repeat timer when the button is released.
 			// This fixes jumping when you release Left and Right after entering the sort 
 			// code at the same if L & R aren't released at the exact same time.
-			if( input.type == IET_RELEASE )
+			if (input.type == IET_RELEASE)
 			{
-				INPUTMAPPER->ResetKeyRepeat( m_GameButtonPreviousSong, input.pn );
-				INPUTMAPPER->ResetKeyRepeat( m_GameButtonNextSong, input.pn );
+				INPUTMAPPER->ResetKeyRepeat(m_GameButtonPreviousSong, input.pn);
+				INPUTMAPPER->ResetKeyRepeat(m_GameButtonNextSong, input.pn);
 			}
 		}
 	}
 
 	// To allow changing steps with gamebuttons, NOT WITH THE GODDAMN CODEDETECTOR
 	// yeah, wanted this since a while ago... -DaisuMaster
-	if( CHANGE_STEPS_WITH_GAME_BUTTONS )
+	if (CHANGE_STEPS_WITH_GAME_BUTTONS)
 	{
 		// Avoid any event not being first press
-		if( input.type != IET_FIRST_PRESS )
+		if (input.type != IET_FIRST_PRESS)
 			return false;
 
-		if( m_SelectionState == SelectionState_SelectingSong )
+		if (m_SelectionState == SelectionState_SelectingSong)
 		{
-			if (input.MenuI == m_GameButtonPreviousDifficulty )
+			if (input.MenuI == m_GameButtonPreviousDifficulty)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
-					ChangeSteps( input.pn, -1 );
+					ChangeSteps(input.pn, -1);
 			}
-			else if( input.MenuI == m_GameButtonNextDifficulty )
+			else if (input.MenuI == m_GameButtonNextDifficulty)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
-					ChangeSteps( input.pn, +1 );
+					ChangeSteps(input.pn, +1);
 			}
 		}
 	}
 
 	// Actually I don't like to just copy and paste code because it may go
 	// wrong if something goes overlooked -DaisuMaster
-	if( CHANGE_GROUPS_WITH_GAME_BUTTONS )
+	if (CHANGE_GROUPS_WITH_GAME_BUTTONS)
 	{
-		if( input.type != IET_FIRST_PRESS)
+		if (input.type != IET_FIRST_PRESS)
 			return false;
 
-		if( m_SelectionState == SelectionState_SelectingSong )
+		if (m_SelectionState == SelectionState_SelectingSong)
 		{
-			if(input.MenuI == m_GameButtonPreviousGroup )
+			if (input.MenuI == m_GameButtonPreviousGroup)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
@@ -762,9 +770,9 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
 					AfterMusicChange();
 				}
 			}
-			else if(input.MenuI == m_GameButtonNextGroup )
+			else if (input.MenuI == m_GameButtonNextGroup)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
@@ -780,61 +788,61 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
 
 	// two part confirms only means we can actually change songs here,
 	// so we need some hackery. -aj
-	if( TWO_PART_CONFIRMS_ONLY )
+	if (TWO_PART_CONFIRMS_ONLY)
 	{
-		if( m_SelectionState == SelectionState_SelectingSteps )
+		if (m_SelectionState == SelectionState_SelectingSteps)
 		{
-			if( input.MenuI == m_GameButtonPreviousSong )
+			if (input.MenuI == m_GameButtonPreviousSong)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
 					m_SelectionState = SelectionState_SelectingSong;
 					MESSAGEMAN->Broadcast("TwoPartConfirmCanceled");
 					MESSAGEMAN->Broadcast("PreviousSong");
-					m_MusicWheel.ChangeMusicUnlessLocked( -1 );
+					m_MusicWheel.ChangeMusicUnlessLocked(-1);
 				}
 			}
-			else if( input.MenuI == m_GameButtonNextSong )
+			else if (input.MenuI == m_GameButtonNextSong)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
 					m_SelectionState = SelectionState_SelectingSong;
 					MESSAGEMAN->Broadcast("TwoPartConfirmCanceled");
 					MESSAGEMAN->Broadcast("NextSong");
-					m_MusicWheel.ChangeMusicUnlessLocked( +1 );
+					m_MusicWheel.ChangeMusicUnlessLocked(+1);
 				}
 			}
 			// added an entry for difficulty change with gamebuttons -DaisuMaster
-			else if( input.MenuI == m_GameButtonPreviousDifficulty )
+			else if (input.MenuI == m_GameButtonPreviousDifficulty)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
 					m_SelectionState = SelectionState_SelectingSong;
 					MESSAGEMAN->Broadcast("TwoPartConfirmCanceled");
-					ChangeSteps( input.pn, -1);
+					ChangeSteps(input.pn, -1);
 				}
 			}
-			else if( input.MenuI == m_GameButtonNextDifficulty )
+			else if (input.MenuI == m_GameButtonNextDifficulty)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
 					m_SelectionState = SelectionState_SelectingSong;
 					MESSAGEMAN->Broadcast("TwoPartConfirmCanceled");
-					ChangeSteps( input.pn, +1);
+					ChangeSteps(input.pn, +1);
 				}
 			}
 			// added also for groupchanges
-			else if(input.MenuI == m_GameButtonPreviousGroup )
+			else if (input.MenuI == m_GameButtonPreviousGroup)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
@@ -846,9 +854,9 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
 					AfterMusicChange();
 				}
 			}
-			else if(input.MenuI == m_GameButtonNextGroup )
+			else if (input.MenuI == m_GameButtonNextGroup)
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
@@ -864,42 +872,42 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
 	}
 	else
 	{
-		if( m_SelectionState == SelectionState_SelectingSteps && input.type == IET_FIRST_PRESS && !m_bStepsChosen[input.pn] )
+		if (m_SelectionState == SelectionState_SelectingSteps && input.type == IET_FIRST_PRESS) // && !m_bStepsChosen[input.pn] )
 		{
-			if( input.MenuI == m_GameButtonNextSong || input.MenuI == m_GameButtonPreviousSong )
+			if (input.MenuI == m_GameButtonNextSong || input.MenuI == m_GameButtonPreviousSong)
 			{
-				if( input.MenuI == m_GameButtonPreviousSong )
+				if (input.MenuI == m_GameButtonPreviousSong)
 				{
-					if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+					if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 						m_soundLocked.Play();
 					else
-						ChangeSteps( input.pn, -1 );
+						ChangeSteps(input.pn, -1);
 				}
-				else if( input.MenuI == m_GameButtonNextSong )
+				else if (input.MenuI == m_GameButtonNextSong)
 				{
-					if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+					if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 						m_soundLocked.Play();
 					else
-						ChangeSteps( input.pn, +1 );
+						ChangeSteps(input.pn, +1);
 				}
 			}
-			else if( input.MenuI == GAME_BUTTON_MENUUP || input.MenuI == GAME_BUTTON_MENUDOWN ) // && TWO_PART_DESELECTS_WITH_MENUUPDOWN
+			else if (input.MenuI == GAME_BUTTON_MENUUP || input.MenuI == GAME_BUTTON_MENUDOWN) // && TWO_PART_DESELECTS_WITH_MENUUPDOWN
 			{
-				if( GAMESTATE->IsAnExtraStageAndSelectionLocked() )
+				if (GAMESTATE->IsAnExtraStageAndSelectionLocked())
 					m_soundLocked.Play();
 				else
 				{
 					// XXX: should this be called "TwoPartCancelled"?
-                    float fSeconds = m_MenuTimer->GetSeconds();
-                    if( fSeconds > 10 ) {
-                        Message msg("SongUnchosen");
-                        msg.SetParam( "Player", input.pn );
-                        MESSAGEMAN->Broadcast( msg );
-                        // unset all steps
-                        FOREACH_ENUM( PlayerNumber , p )
-                            m_bStepsChosen[p] = false;
-                        m_SelectionState = SelectionState_SelectingSong;
-                    }
+					float fSeconds = m_MenuTimer->GetSeconds();
+					if (fSeconds > 10) {
+						Message msg("SongUnchosen");
+						msg.SetParam("Player", input.pn);
+						MESSAGEMAN->Broadcast(msg);
+						// unset all steps
+						FOREACH_ENUM(PlayerNumber, p)
+							m_bStepsChosen[p] = false;
+						m_SelectionState = SelectionState_SelectingSong;
+					}
 				}
 			}
 		}
@@ -927,10 +935,12 @@ bool ScreenSelectMusic::Input( const InputEventPlus &input )
 		}
 	}
 
-	if( input.type == IET_FIRST_PRESS && DetectCodes(input) )
+
+
+	if (input.type == IET_FIRST_PRESS && DetectCodes(input))
 		return true;
 
-	return ScreenWithMenuElements::Input( input );
+	return ScreenWithMenuElements::Input(input);
 }
 
 bool ScreenSelectMusic::DetectCodes( const InputEventPlus &input )
@@ -1358,7 +1368,7 @@ bool ScreenSelectMusic::MenuStart( const InputEventPlus &input )
 			bool bAllOtherHumanPlayersDone = true;
 			FOREACH_HumanPlayer( p )
 			{
-				if( p == pn )
+				if( p == pn && false)
 					continue;
 				bAllOtherHumanPlayersDone &= m_bStepsChosen[p];
 			}
@@ -1457,6 +1467,16 @@ bool ScreenSelectMusic::MenuStart( const InputEventPlus &input )
 				Message msg("StepsChosen");
 				msg.SetParam( "Player", pn );
 				MESSAGEMAN->Broadcast( msg );
+				if (true)
+				{
+					bool bWaitingForConfirm = true;
+					FOREACH_HumanPlayer(p)
+					{
+						bWaitingForConfirm &= m_bStepsChosen[p];
+					}
+					if (bWaitingForConfirm)
+						MESSAGEMAN->Broadcast("WaitingForConfirm");
+				}
 				return true;
 			}
 		}
