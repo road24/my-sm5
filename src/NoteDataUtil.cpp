@@ -106,33 +106,72 @@ static void LoadFromSMNoteDataStringWithPlayer( NoteData& out, const RString &sS
 			const int iIndex = BeatToNoteRow( fBeat );
 
 			int iTrack = 0;
+			bool bParsingSF2hack = false;
 			while( iTrack < iNumTracks && p < endLine )
 			{
 				TapNote tn;
 				char ch = *p;
+				bParsingSF2hack = ch == '{';
+				if (bParsingSF2hack)
+				{
+					p++;
+					ch = *p;
+				}
 
 				switch( ch )
 				{
 				case '0': tn = TAP_EMPTY;				break;
-				case '1': tn = TAP_ORIGINAL_TAP;			break;
+				case '1': 
+					if (pn == PLAYER_INVALID)
+						tn = TAP_ORIGINAL_TAP;
+					else
+						tn = pn == PLAYER_2 ? TAP_ORIGINAL_TAP_P2 : TAP_ORIGINAL_TAP_P1;
+					break;
+				case 'I': tn = pn == PLAYER_2 ? TAP_ORIGINAL_TAP_P4 : TAP_ORIGINAL_TAP_P3; break;
+				case 'X': tn = TAP_ORIGINAL_TAP_P1;		break;
+				case 'Y': tn = TAP_ORIGINAL_TAP_P2;		break;
+				case 'Z': tn = TAP_ORIGINAL_TAP_P3;		break;
+				case '5': tn = TAP_ORIGINAL_TAP;		break;	// this ones is an invisible arrow, but is not supported yet
 				case '2':
 				case '4':
 				// case 'N': // minefield
-					tn = ch == '2' ? TAP_ORIGINAL_HOLD_HEAD : TAP_ORIGINAL_ROLL_HEAD;
-					/*
-					// upcoming code for minefields -aj
-					switch(ch)
+					//tn = ch == '2' ? TAP_ORIGINAL_HOLD_HEAD : TAP_ORIGINAL_ROLL_HEAD;
+					switch (ch)
 					{
-					case '2': tn = TAP_ORIGINAL_HOLD_HEAD; break;
+					case '2':
+						if (pn == PLAYER_INVALID)
+							tn = TAP_ORIGINAL_HOLD_HEAD;
+						else
+							tn = pn == PLAYER_2 ? TAP_ORIGINAL_HOLD_HEAD_P2 : TAP_ORIGINAL_HOLD_HEAD_P1;
+						break;
 					case '4': tn = TAP_ORIGINAL_ROLL_HEAD; break;
-					case 'N': tn = TAP_ORIGINAL_MINE_HEAD; break;
+					default: tn = TAP_EMPTY; break;
 					}
-					*/
+
+
+
 
 					/* Set the hold note to have infinite length. We'll clamp
 					 * it when we hit the tail. */
 					tn.iDuration = MAX_NOTE_ROW;
 					break;
+				case 'x': 
+					tn = TAP_ORIGINAL_HOLD_HEAD_P1; 
+					tn.iDuration = MAX_NOTE_ROW;
+					break;
+				case 'y':
+					tn = TAP_ORIGINAL_HOLD_HEAD_P2;
+					tn.iDuration = MAX_NOTE_ROW;
+					break;
+				case 'z':
+					tn = TAP_ORIGINAL_HOLD_HEAD_P3;
+					tn.iDuration = MAX_NOTE_ROW;
+					break;
+				case 'S':
+					tn = pn == PLAYER_2 ? TAP_ORIGINAL_HOLD_HEAD_P4 : TAP_ORIGINAL_HOLD_HEAD_P3;
+					tn.iDuration = MAX_NOTE_ROW;
+					break;
+				case 'E':
 				case '3':
 				{
 					// This is the end of a hold. Search for the beginning.
@@ -150,6 +189,11 @@ static void LoadFromSMNoteDataStringWithPlayer( NoteData& out, const RString &sS
 					// This won't write tn, but keep parsing normally anyway.
 					break;
 				}
+				case '6':	// invisible arrow too
+					tn = TAP_ORIGINAL_HOLD_HEAD_P3;
+					tn.iDuration = MAX_NOTE_ROW;
+					break;
+
 				//				case 'm':
 				// Don't be loose with the definition.  Use only 'M' since
 				// that's what we've been writing to disk.  -Chris
@@ -164,9 +208,42 @@ static void LoadFromSMNoteDataStringWithPlayer( NoteData& out, const RString &sS
 					 * simply be invalid data in an .SM, and we don't want to die
 					 * due to invalid data. We should probably check for this when
 					 * we load SM data for the first time ... */
-					// FAIL_M("Invalid data in SM");
+					//FAIL_M(ssprintf("NoteDataUtil Got Invalid data in SM %c",*p));
 					tn = TAP_EMPTY;
 					break;
+				}
+
+				if(bParsingSF2hack)
+				{
+					// i'll not parse the rest for now
+					while( *p != '}') p++;
+					bParsingSF2hack = false;
+					// this is how this should be done for sake of more tags
+					#if 0
+					enum SF2ParsingState
+					{
+						SF2ParsingState_Parsing_None,
+						SF2ParsingState_Parsing_Note,
+						SF2ParsingState_Parsing_Draw_Att,
+						SF2ParsingState_Parsing_Juge_Att,
+						SF2ParsingState_Parsing_UNK_Att
+					}
+					SF2ParsingState parsingState = SF2ParsingState_Parsing_Note;
+					while (*p != '}')
+					{
+						if (*p == '|') p++;
+						switch (parsingState)
+						{
+						case SF2ParsingState_Parsing_Note: break;
+						case SF2ParsingState_Parsing_Draw_Att: break;
+						case SF2ParsingState_Parsing_Juge_Att: break;
+						case SF2ParsingState_Parsing_UNK_Att: break;
+						default:
+							break;
+						}
+						p++;
+					}
+					#endif
 				}
 
 				p++;
