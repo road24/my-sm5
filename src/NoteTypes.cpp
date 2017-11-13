@@ -18,6 +18,19 @@ TapNote TAP_ORIGINAL_FAKE	( TapNoteType_Fake,	TapNoteSubType_Invalid,	TapNoteSou
 TapNote TAP_ADDITION_TAP	( TapNoteType_Tap,	TapNoteSubType_Invalid,	TapNoteSource_Addition, "", 0, -1 );
 TapNote TAP_ADDITION_MINE	( TapNoteType_Mine,	TapNoteSubType_Invalid,	TapNoteSource_Addition, "", 0, -1 );
 
+TapNote TAP_ORIGINAL_TAP_P1(TapNoteType_Tap, TapNoteSubType_Invalid, TapNoteSource_Original, "", 0, -1);
+TapNote TAP_ORIGINAL_TAP_P2(TapNoteType_Tap, TapNoteSubType_Invalid, TapNoteSource_Original, "", 0, -1);
+TapNote TAP_ORIGINAL_TAP_P3(TapNoteType_Tap, TapNoteSubType_Invalid, TapNoteSource_Original, "", 0, -1);
+TapNote TAP_ORIGINAL_TAP_P4(TapNoteType_Tap, TapNoteSubType_Invalid, TapNoteSource_Original, "", 0, -1);
+TapNote TAP_ORIGINAL_TAP_P5(TapNoteType_Tap, TapNoteSubType_Invalid, TapNoteSource_Original, "", 0, -1);
+
+TapNote TAP_ORIGINAL_HOLD_HEAD_P1(TapNoteType_HoldHead, TapNoteSubType_Hold, TapNoteSource_Original, "", 0, -1);
+TapNote TAP_ORIGINAL_HOLD_HEAD_P2(TapNoteType_HoldHead, TapNoteSubType_Hold, TapNoteSource_Original, "", 0, -1);
+TapNote TAP_ORIGINAL_HOLD_HEAD_P3(TapNoteType_HoldHead, TapNoteSubType_Hold, TapNoteSource_Original, "", 0, -1);
+TapNote TAP_ORIGINAL_HOLD_HEAD_P4(TapNoteType_HoldHead, TapNoteSubType_Hold, TapNoteSource_Original, "", 0, -1);
+TapNote TAP_ORIGINAL_HOLD_HEAD_P5(TapNoteType_HoldHead, TapNoteSubType_Hold, TapNoteSource_Original, "", 0, -1);
+
+
 
 static const char *TapNoteTypeNames[] = {
 	"Empty",

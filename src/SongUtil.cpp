@@ -991,7 +991,8 @@ void SongUtil::GetPlayableSteps( const Song *pSong, vector<Steps*> &vOut )
 
 	StepsUtil::RemoveLockedSteps( pSong, vOut );
 	StepsUtil::SortNotesArrayByDifficulty( vOut );
-	StepsUtil::SortStepsByTypeAndDifficulty( vOut );
+	//StepsUtil::SortStepsByTypeAndDifficulty( vOut );
+	StepsUtil::SortStepsByTypeAndMeter(vOut);
 }
 
 bool SongUtil::IsStepsTypePlayable( Song *pSong, StepsType st )

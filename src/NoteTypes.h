@@ -232,6 +232,21 @@ extern TapNote TAP_ORIGINAL_FAKE;		// 'F'
 extern TapNote TAP_ADDITION_TAP;
 extern TapNote TAP_ADDITION_MINE;
 
+
+extern TapNote TAP_ORIGINAL_TAP_P1;
+extern TapNote TAP_ORIGINAL_TAP_P2;
+extern TapNote TAP_ORIGINAL_TAP_P3;
+extern TapNote TAP_ORIGINAL_TAP_P4;
+extern TapNote TAP_ORIGINAL_TAP_P5;
+
+extern TapNote TAP_ORIGINAL_HOLD_HEAD_P1;
+extern TapNote TAP_ORIGINAL_HOLD_HEAD_P2;
+extern TapNote TAP_ORIGINAL_HOLD_HEAD_P3;
+extern TapNote TAP_ORIGINAL_HOLD_HEAD_P4;
+extern TapNote TAP_ORIGINAL_HOLD_HEAD_P5;
+
+
+
 /**
  * @brief The number of tracks allowed.
  *

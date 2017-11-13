@@ -391,7 +391,9 @@ void Steps::Decompress()
 		bool bComposite = GAMEMAN->GetStepsTypeInfo(m_StepsType).m_StepsTypeCategory == StepsTypeCategory_Routine;
 		m_bNoteDataIsFilled = true;
 		m_pNoteData->SetNumTracks( GAMEMAN->GetStepsTypeInfo(m_StepsType).iNumTracks );
-
+#if DEBUG
+		LOG->Trace("Loading %s from %s \n", this->GetChartName().c_str(), this->GetFilename().c_str());
+#endif
 		NoteDataUtil::LoadFromSMNoteDataString( *m_pNoteData, m_sNoteDataCompressed, bComposite );
 	}
 }

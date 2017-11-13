@@ -171,6 +171,15 @@ void StepsUtil::SortNotesArrayByDifficulty( vector<Steps*> &arraySteps )
 	stable_sort( arraySteps.begin(), arraySteps.end(), CompareNotesPointersByDifficulty );
 }
 
+bool StepsUtil::CompareStepsPointersByTypeAndMeter(const Steps *pStep1, const Steps *pStep2)
+{
+	if (pStep1->m_StepsType < pStep2->m_StepsType)
+		return true;
+	if (pStep1->m_StepsType > pStep2->m_StepsType)
+		return false;
+	return pStep1->GetMeter() < pStep2->GetMeter();
+}
+
 bool StepsUtil::CompareStepsPointersByTypeAndDifficulty(const Steps *pStep1, const Steps *pStep2)
 {
 	if( pStep1->m_StepsType < pStep2->m_StepsType )
@@ -183,6 +192,11 @@ bool StepsUtil::CompareStepsPointersByTypeAndDifficulty(const Steps *pStep1, con
 void StepsUtil::SortStepsByTypeAndDifficulty( vector<Steps*> &arraySongPointers )
 {
 	sort( arraySongPointers.begin(), arraySongPointers.end(), CompareStepsPointersByTypeAndDifficulty );
+}
+
+void StepsUtil::SortStepsByTypeAndMeter(vector<Steps*> &arraySongPointers)
+{
+	sort(arraySongPointers.begin(), arraySongPointers.end(), CompareStepsPointersByTypeAndMeter);
 }
 
 bool StepsUtil::CompareStepsPointersByDescription(const Steps *pStep1, const Steps *pStep2)
