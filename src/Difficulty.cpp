@@ -11,10 +11,15 @@
 
 static const char *DifficultyNames[] = {
 	"Beginner",
+	"Simple",	// infinity
 	"Easy",
+	"Moderate",	// infinity
 	"Medium",
+	"Tough",	// infinity
 	"Hard",
+	"Crazy", // infinity
 	"Challenge",
+	"Nightmare",	// infinity
 	"Edit",
 };
 XToString( Difficulty );

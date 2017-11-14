@@ -538,7 +538,8 @@ FileType ActorUtil::GetFileType( const RString &sPath )
 		sExt=="mov" ||
 		sExt=="flv" ||
 		sExt=="f4v" ||			
-		sExt=="mpg" )		return FT_Movie;
+		sExt=="mpg" ||
+		sExt == "bik")		return FT_Movie;
 	else if(
 		sExt=="sprite" )	return FT_Sprite;
 	else if( 

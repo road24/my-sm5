@@ -10,10 +10,15 @@ class Trail;
 enum Difficulty 
 {
 	Difficulty_Beginner,
+	Difficulty_Simple, // infinity
 	Difficulty_Easy,
+	Difficulty_Moderate, // infinity
 	Difficulty_Medium,
+	Difficulty_Tough, // infinity
 	Difficulty_Hard,
+	Difficulty_Crazy, // infinity
 	Difficulty_Challenge,
+	Difficulty_Nightmare, // infinity
 	Difficulty_Edit,
 	NUM_Difficulty,
 	Difficulty_Invalid

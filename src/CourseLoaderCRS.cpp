@@ -23,10 +23,15 @@ const int MAX_EDIT_COURSE_SIZE_BYTES	= 32*1024;	// 32KB
 const char *g_CRSDifficultyNames[] =
 {
 	"Beginner",
+	"Simple",	// infinity
 	"Easy",
-	"Regular",
-	"Difficult",
+	"Moderate",	// infinity
+	"Medium",
+	"Tough",	// infinity
+	"Hard",
+	"Crazy", // infinity
 	"Challenge",
+	"Nightmare",	// infinity
 	"Edit",
 };
 

@@ -202,7 +202,8 @@ void BackgroundUtil::GetSongMovies( const Song *pSong, const RString &sMatch, ve
 		GetDirListing( pSong->GetSongDir()+sMatch+"*.flv", vsPathsOut, false, true );
 		GetDirListing( pSong->GetSongDir()+sMatch+"*.f4v", vsPathsOut, false, true );
 		GetDirListing( pSong->GetSongDir()+sMatch+"*.mov", vsPathsOut, false, true );
-		GetDirListing( pSong->GetSongDir()+sMatch+"*.mkv", vsPathsOut, false, true );		
+		GetDirListing( pSong->GetSongDir()+sMatch+"*.mkv", vsPathsOut, false, true );	
+		GetDirListing( pSong->GetSongDir()+sMatch+"*.bik", vsPathsOut, false, true );
 	}
 	else
 	{
